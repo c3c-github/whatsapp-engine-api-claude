@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "WhatsApp Engine API v2",
+    "_postman_id": "wa-engine-api-v2",
+    "description": "Collection completa para testar a WhatsApp Engine API. \n\n**FLUXO RECOMENDADO:**\n1. Criar Organização → copiar `api_key` e setar variável `api_key`\n2. Criar Canal → copiar `id` e setar variável `channel_id`\n3. Login → copiar `qr_code`, renderizar e escanear com WhatsApp\n4. Status → aguardar `CONNECTED`\n5. Enviar mensagens, criar contatos, grupos...",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "api_key", "value": "", "type": "string", "description": "Preenchido automaticamente ao criar organização" },
+    { "key": "org_id", "value": "", "type": "string" },
+    { "key": "channel_id", "value": "", "type": "string" },
+    { "key": "contact_id", "value": "", "type": "string" },
+    { "key": "wa_message_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔍 Health Check",
+      "item": [
+        {
+          "name": "GET / — Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Organizations",
+      "item": [
+        {
+          "name": "POST /api/organizations — Criar organização",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('api_key', data.api_key);",
+                  "  pm.collectionVariables.set('org_id', data.id);",
+                  "  console.log('api_key salvo:', data.api_key);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Minha Empresa\",\n  \"webhook_url\": \"https://exemplo.com/webhook\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/organizations", "host": ["{{base_url}}"], "path": ["api", "organizations"] }
+          }
+        },
+        {
+          "name": "GET /api/organizations/:id — Detalhes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/organizations/{{org_id}}", "host": ["{{base_url}}"], "path": ["api", "organizations", "{{org_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📡 Channels",
+      "item": [
+        {
+          "name": "POST /api/channels — Criar canal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('channel_id', data.id);",
+                  "  console.log('channel_id salvo:', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_number\": \"5511999999999\",\n  \"type\": \"CENTRAL\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/channels", "host": ["{{base_url}}"], "path": ["api", "channels"] }
+          }
+        },
+        {
+          "name": "GET /api/channels — Listar canais",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels", "host": ["{{base_url}}"], "path": ["api", "channels"] }
+          }
+        },
+        {
+          "name": "GET /api/channels/:id — Detalhe do canal",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Session (Login/Logout)",
+      "item": [
+        {
+          "name": "POST /api/channels/:id/login — Iniciar sessão (gera QR)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/login", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "login"] }
+          }
+        },
+        {
+          "name": "GET /api/channels/:id/qr — Página do QR Code (Abrir no Browser)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/qr", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "qr"] },
+            "description": "IMPORTANTE: Abra este link diretamente no seu navegador para ver e escanear o QR Code."
+          }
+        },
+        {
+          "name": "GET /api/channels/:id/status — Status da conexão",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/status", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "status"] }
+          }
+        },
+        {
+          "name": "POST /api/channels/:id/logout — Desconectar",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/logout", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 Messages",
+      "item": [
+        {
+          "name": "POST /messages — Enviar mensagem",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  pm.collectionVariables.set('wa_message_id', data.wa_message_id);",
+                  "  console.log('wa_message_id salvo:', data.wa_message_id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"5511988887777@s.whatsapp.net\",\n  \"content\": \"Olá! Mensagem enviada via API 🚀\",\n  \"source_system\": \"API\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/messages", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "messages"] }
+          }
+        },
+        {
+          "name": "GET /messages — Listar outbound",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/{{channel_id}}/messages?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "{{channel_id}}", "messages"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "GET /messages/inbound — Listar recebidas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/channels/{{channel_id}}/messages/inbound?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "channels", "{{channel_id}}", "messages", "inbound"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+            }
+          }
+        },
+        {
+          "name": "PUT /messages/:id — Editar mensagem",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Mensagem editada ✏️\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/messages/{{wa_message_id}}", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "messages", "{{wa_message_id}}"] }
+          }
+        },
+        {
+          "name": "DELETE /messages/:id — Revogar mensagem",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/messages/{{wa_message_id}}", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "messages", "{{wa_message_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Contacts",
+      "item": [
+        {
+          "name": "POST /contacts — Criar contato",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('contact_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"João Silva\",\n  \"phone_number\": \"5511988887777@s.whatsapp.net\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/contacts", "host": ["{{base_url}}"], "path": ["api", "contacts"] }
+          }
+        },
+        {
+          "name": "GET /contacts — Listar contatos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/contacts?search=", "host": ["{{base_url}}"], "path": ["api", "contacts"], "query": [{ "key": "search", "value": "" }] }
+          }
+        },
+        {
+          "name": "PUT /contacts/:id — Atualizar contato",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"João Silva Atualizado\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/contacts/{{contact_id}}", "host": ["{{base_url}}"], "path": ["api", "contacts", "{{contact_id}}"] }
+          }
+        },
+        {
+          "name": "DELETE /contacts/:id — Remover contato",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/contacts/{{contact_id}}", "host": ["{{base_url}}"], "path": ["api", "contacts", "{{contact_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Groups",
+      "item": [
+        {
+          "name": "POST /groups — Criar grupo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Equipe Dev\",\n  \"participants\": [\n    \"5511988887777@s.whatsapp.net\"\n  ]\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/groups", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "groups"] }
+          }
+        },
+        {
+          "name": "GET /groups — Listar grupos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/groups", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "groups"] }
+          }
+        },
+        {
+          "name": "PUT /groups/:wa_group_id — Atualizar grupo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Equipe Dev 2.0\",\n  \"add\": [\"5511977776666@s.whatsapp.net\"],\n  \"remove\": []\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/groups/GRUPO_WA_ID@g.us", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "groups", "GRUPO_WA_ID@g.us"] }
+          }
+        },
+        {
+          "name": "DELETE /groups/:wa_group_id — Sair do grupo",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "x-api-key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{base_url}}/api/channels/{{channel_id}}/groups/GRUPO_WA_ID@g.us", "host": ["{{base_url}}"], "path": ["api", "channels", "{{channel_id}}", "groups", "GRUPO_WA_ID@g.us"] }
+          }
+        }
+      ]
+    }
+  ]
+}

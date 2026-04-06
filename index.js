@@ -1,102 +1,67 @@
-require("dotenv").config();
-const express = require("express");
-const axios = require("axios");
+import "dotenv/config";
+import express from "express";
+
+// Prevent server crash on unhandled Baileys errors
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+import organizationRoutes from "./src/routes/organization.routes.js";
+import channelRoutes from "./src/routes/channel.routes.js";
+import sessionRoutes from "./src/routes/session.routes.js";
+import messageRoutes from "./src/routes/message.routes.js";
+import contactRoutes from "./src/routes/contact.routes.js";
+import groupRoutes from "./src/routes/group.routes.js";
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const {
-  WHATSAPP_API_TOKEN,
-  WHATSAPP_PHONE_NUMBER_ID,
-  WHATSAPP_API_VERSION = "v19.0",
-  WEBHOOK_VERIFY_TOKEN,
-} = process.env;
 
-// ─── Health Check ────────────────────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use("/api/organizations", organizationRoutes);
+app.use("/api/channels", channelRoutes);
+app.use("/api/channels/:id", sessionRoutes);
+app.use("/api/channels/:id/messages", messageRoutes);
+app.use("/api/contacts", contactRoutes);
+app.use("/api/channels/:id/groups", groupRoutes);
+
+// ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    app: "whatsapp-engine-api",
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: "ok", app: "whatsapp-engine-api", version: "2.0.0", timestamp: new Date().toISOString() });
 });
 
-// ─── Webhook Verification (Meta) ─────────────────────────────────────────────
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
-    console.log("[Webhook] Verificado com sucesso");
-    return res.status(200).send(challenge);
-  }
-  res.sendStatus(403);
+// ── 404 / Error handlers ──────────────────────────────────────────────────────
+app.use((req, res) => res.status(404).json({ error: `Route ${req.method} ${req.path} not found` }));
+app.use((err, req, res, next) => {
+  console.error("[Unhandled Error]", err);
+  res.status(500).json({ error: "Internal server error" });
 });
 
-// ─── Webhook: receber mensagens ───────────────────────────────────────────────
-app.post("/webhook", (req, res) => {
-  const body = req.body;
+app.listen(PORT, async () => {
+  console.log(`[WhatsApp Engine API v2] Running on port ${PORT}`);
 
-  if (body.object === "whatsapp_business_account") {
-    body.entry?.forEach((entry) => {
-      entry.changes?.forEach((change) => {
-        const messages = change.value?.messages;
-        if (messages) {
-          messages.forEach((msg) => {
-            console.log(
-              `[Mensagem recebida] De: ${msg.from} | Tipo: ${msg.type}`,
-            );
-            if (msg.type === "text") {
-              console.log(`  Texto: ${msg.text.body}`);
-            }
-          });
-        }
-      });
-    });
-  }
-
-  res.sendStatus(200);
-});
-
-// ─── Enviar mensagem de texto ─────────────────────────────────────────────────
-app.post("/send", async (req, res) => {
-  const { to, message } = req.body;
-
-  if (!to || !message) {
-    return res.status(400).json({ error: "Campos obrigatórios: to, message" });
-  }
-
+  // Auto-initialize channels that were active
   try {
-    const url = `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
-    const response = await axios.post(
-      url,
-      {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "text",
-        text: { preview_url: false, body: message },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    const { initSocket } = await import("./src/services/whatsapp.service.js");
+    const prisma = (await import("./src/lib/prisma.js")).default;
+    
+    const activeChannels = await prisma.channel.findMany({
+      where: { status: { in: ["CONNECTED", "AWAITING_QR"] } },
+    });
 
-    console.log(`[Mensagem enviada] Para: ${to}`);
-    res.json({ success: true, data: response.data });
+    if (activeChannels.length > 0) {
+      console.log(`[Startup] Restoring ${activeChannels.length} active channels...`);
+      for (const channel of activeChannels) {
+        initSocket(channel).catch((err) =>
+          console.error(`[Startup] Failed to restore channel ${channel.id}:`, err.message)
+        );
+      }
+    }
   } catch (err) {
-    const errData = err.response?.data || err.message;
-    console.error("[Erro ao enviar]", errData);
-    res.status(500).json({ error: errData });
+    console.error("[Startup] Error during channel restoration:", err);
   }
-});
-
-// ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[WhatsApp Engine API] Rodando na porta ${PORT}`);
 });
