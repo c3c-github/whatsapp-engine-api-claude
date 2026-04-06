@@ -1,0 +1,27 @@
+{
+  "name": "whatsapp-engine-api",
+  "description": "Multi-tenant WhatsApp Engine API via Baileys",
+  "keywords": ["whatsapp", "api", "baileys", "messaging"],
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    },
+    {
+      "plan": "scheduler:standard"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "scripts": {
+    "postdeploy": "npx prisma migrate deploy"
+  }
+}
