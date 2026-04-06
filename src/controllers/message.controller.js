@@ -19,7 +19,18 @@ async function sendMessage(req, res) {
   if (!info?.sock) return res.status(409).json({ error: "Channel is not connected. Call /login first." });
   const resolvedSourceSystem = VALID_SOURCE_SYSTEMS.includes(source_system) ? source_system : "API";
   try {
-    const msgContent = typeof content === "string" ? { text: content } : content;
+    const msgContent = typeof content === "string" ? { text: content } : { ...content };
+    
+    // Suporte nativo para envio de media via API recebendo base64
+    for (const type of ['audio', 'image', 'document', 'video', 'sticker']) {
+      if (msgContent[type] && typeof msgContent[type] === 'object' && msgContent[type].base64) {
+        msgContent[type] = Buffer.from(msgContent[type].base64, 'base64');
+      } else if (msgContent[type] && typeof msgContent[type] === 'string' && msgContent[type].startsWith('data:')) {
+        // Suporta data URI: data:audio/ogg;base64,.....
+        msgContent[type] = Buffer.from(msgContent[type].split(',')[1], 'base64');
+      }
+    }
+
     const sent = await info.sock.sendMessage(to, msgContent);
     const waMessageId = sent.key.id;
     const message = await prisma.message.create({ data: { org_id: channel.org_id, channel_id: channel.id, wa_message_id: waMessageId, remote_jid: to, direction: "OUTBOUND", source_system: resolvedSourceSystem, content: sent.message, status: "SENT" } });
