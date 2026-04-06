@@ -1,19 +1,30 @@
 {
   "name": "whatsapp-engine-api",
-  "version": "1.0.0",
-  "description": "WhatsApp Engine API - Servidor para envio e recebimento de mensagens via WhatsApp Business API",
+  "version": "2.0.0",
+  "description": "WhatsApp Engine API - Multi-tenant REST API for WhatsApp session management via Baileys",
+  "type": "module",
   "main": "index.js",
   "engines": {
-    "node": ">=18.x"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "test": "node test.js"
   },
   "dependencies": {
-    "axios": "^1.6.0",
+    "@prisma/client": "^5.10.2",
+    "@whiskeysockets/baileys": "^6.7.5",
     "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "pino": "^8.19.0",
+    "prisma": "^5.10.2",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
@@ -22,7 +33,9 @@
     "whatsapp",
     "api",
     "engine",
-    "messaging"
+    "messaging",
+    "baileys",
+    "multi-tenant"
   ],
   "author": "",
   "license": "MIT"
