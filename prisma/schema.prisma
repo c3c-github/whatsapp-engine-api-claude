@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChannelStatus {
+  DISCONNECTED
+  CONNECTED
+  AWAITING_QR
+}
+
+enum ChannelType {
+  CENTRAL
+  PESSOAL
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  ERROR
+}
+
+enum MessageSourceSystem {
+  API
+  MIDDLEWARE
+  WHATSAPP_DEVICE
+}
+
+enum ParticipantRole {
+  ADMIN
+  MEMBER
+}
+
+enum EntityType {
+  MESSAGE
+  GROUP
+  CONTACT
+  SESSION
+  CHANNEL
+  ORGANIZATION
+}
+
+enum EventAction {
+  CREATED
+  UPDATED
+  DELETED
+  CONNECTED
+  DISCONNECTED
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  api_key     String   @unique
+  webhook_url String?
+  created_at  DateTime @default(now())
+
+  channels  Channel[]
+  contacts  Contact[]
+  messages  Message[]
+  eventLogs EventLog[]
+}
+
+model Channel {
+  id           String        @id @default(uuid())
+  org_id       String
+  phone_number String
+  status       ChannelStatus @default(DISCONNECTED)
+  type         ChannelType   @default(CENTRAL)
+  created_at   DateTime      @default(now())
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  sessions     Session[]
+  messages     Message[]
+  groups       Group[]
+
+  @@unique([org_id, phone_number])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  channel_id String
+  key_id     String
+  data       String   // JSON string
+  updated_at DateTime @updatedAt
+
+  channel Channel @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+
+  @@unique([channel_id, key_id])
+}
+
+model Contact {
+  id           String   @id @default(uuid())
+  org_id       String
+  name         String
+  phone_number String   // WhatsApp JID, e.g. 5511999999999@s.whatsapp.net
+  created_at   DateTime @default(now())
+
+  organization      Organization       @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  groupParticipants GroupParticipant[]
+
+  @@unique([org_id, phone_number])
+}
+
+model Group {
+  id          String   @id @default(uuid())
+  org_id      String
+  channel_id  String
+  wa_group_id String   // WhatsApp group JID
+  name        String
+  description String?
+  created_at  DateTime @default(now())
+
+  channel      Channel            @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+  participants GroupParticipant[]
+
+  @@unique([channel_id, wa_group_id])
+}
+
+model GroupParticipant {
+  id         String          @id @default(uuid())
+  group_id   String
+  contact_id String
+  role       ParticipantRole @default(MEMBER)
+
+  group   Group   @relation(fields: [group_id], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@unique([group_id, contact_id])
+}
+
+model Message {
+  id            String              @id @default(uuid())
+  org_id        String
+  channel_id    String
+  wa_message_id String
+  remote_jid    String
+  direction     MessageDirection
+  source_system MessageSourceSystem @default(API)
+  content       Json                // Raw message content
+  status        MessageStatus       @default(SENT)
+  is_deleted    Boolean             @default(false)
+  created_at    DateTime            @default(now())
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  channel      Channel      @relation(fields: [channel_id], references: [id], onDelete: Cascade)
+
+  @@unique([channel_id, wa_message_id])
+  @@index([org_id, remote_jid])
+  @@index([org_id, direction])
+}
+
+model EventLog {
+  id          String      @id @default(uuid())
+  org_id      String
+  entity_type EntityType
+  entity_id   String
+  action      EventAction
+  payload     Json
+  created_at  DateTime    @default(now())
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id, entity_type])
+  @@index([org_id, created_at])
+}
