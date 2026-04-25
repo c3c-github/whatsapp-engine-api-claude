@@ -58,6 +58,13 @@ enum EventAction {
   DISCONNECTED
 }
 
+enum OrchestratorStatus {
+  NOVO
+  EM_PROCESSAMENTO
+  PROCESSADO
+  ERRO
+}
+
 model Organization {
   id          String   @id @default(uuid())
   name        String
@@ -150,7 +157,7 @@ model Message {
   content       Json                // Raw message content
   status        MessageStatus       @default(SENT)
   is_deleted    Boolean             @default(false)
-  published_to_orchestrator Boolean @default(false)
+  orchestrator_status OrchestratorStatus @default(NOVO)
   orchestrator_error        String?
   created_at    DateTime            @default(now())
 

@@ -124,6 +124,25 @@ async function initSocket(channel) {
 
         if (direction === "INBOUND") {
           try {
+            const pendingMessages = await prisma.message.count({
+              where: {
+                remote_jid: remoteJid,
+                direction: "INBOUND",
+                orchestrator_status: { in: ["NOVO", "EM_PROCESSAMENTO", "ERRO"] },
+                id: { not: saved.id }
+              }
+            });
+
+            if (pendingMessages > 0) {
+              console.log(`[WhatsApp] Skipping immediate publish for ${waMessageId} due to ${pendingMessages} pending messages (Sequencing)`);
+              continue; // stays NOVO
+            }
+
+            await prisma.message.update({
+              where: { id: saved.id },
+              data: { orchestrator_status: "EM_PROCESSAMENTO" }
+            });
+
             const phoneNumber = remoteJid.split('@')[0];
             const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
 
@@ -135,14 +154,14 @@ async function initSocket(channel) {
 
             await prisma.message.update({
               where: { id: saved.id },
-              data: { published_to_orchestrator: true }
+              data: { orchestrator_status: "PROCESSADO", orchestrator_error: null }
             });
             console.log(`[WhatsApp] Successfully published message ${waMessageId} to Orchestrator.`);
           } catch (pubErr) {
             console.error(`[WhatsApp] Orchestrator publish failed for ${waMessageId}:`, pubErr.message);
             await prisma.message.update({
               where: { id: saved.id },
-              data: { orchestrator_error: pubErr.message || "Unknown error" }
+              data: { orchestrator_status: "ERRO", orchestrator_error: pubErr.message || "Unknown error" }
             });
           }
         }

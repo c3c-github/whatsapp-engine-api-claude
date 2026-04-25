@@ -47,7 +47,11 @@ app.listen(PORT, async () => {
   // Auto-initialize channels that were active
   try {
     const { initSocket } = await import("./src/services/whatsapp.service.js");
+    const { startRetryWorker } = await import("./src/services/retry.service.js");
     const prisma = (await import("./src/lib/prisma.js")).default;
+    
+    // Inicia o worker de repescagem em background
+    startRetryWorker();
     
     const activeChannels = await prisma.channel.findMany({
       where: { status: { in: ["CONNECTED", "AWAITING_QR"] } },
