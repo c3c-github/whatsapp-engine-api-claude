@@ -15,6 +15,7 @@ import sessionRoutes from "./src/routes/session.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
 import contactRoutes from "./src/routes/contact.routes.js";
 import groupRoutes from "./src/routes/group.routes.js";
+import orchestratorRoutes from "./src/routes/orchestrator.routes.js";
 
 const app = express();
 app.use(express.json());
@@ -28,6 +29,7 @@ app.use("/api/channels/:id", sessionRoutes);
 app.use("/api/channels/:id/messages", messageRoutes);
 app.use("/api/contacts", contactRoutes);
 app.use("/api/channels/:id/groups", groupRoutes);
+app.use("/api/orchestrator", orchestratorRoutes);
 
 // ── Health Check ──────────────────────────────────────────────────────────────
 app.get("/", (req, res) => {
