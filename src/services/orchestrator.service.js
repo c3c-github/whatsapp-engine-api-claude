@@ -9,7 +9,11 @@ let whatsappInboundQueue = null;
 
 if (redisUrl) {
   try {
-    redisConnection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+    const redisOptions = { maxRetriesPerRequest: null };
+    if (redisUrl.startsWith("rediss://")) {
+      redisOptions.tls = { rejectUnauthorized: false };
+    }
+    redisConnection = new Redis(redisUrl, redisOptions);
     whatsappInboundQueue = new Queue("whatsapp_inbound_queue", {
       connection: redisConnection,
     });
