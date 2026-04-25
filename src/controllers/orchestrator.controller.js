@@ -24,8 +24,11 @@ async function orchestratorSendMessage(req, res) {
       return res.status(409).json({ error: "Channel socket is not active" });
     }
 
+    // Formata o JID corretamente para o Baileys (exige @s.whatsapp.net ou @lid)
+    const remoteJid = phone_number.includes('@') ? phone_number : `${phone_number}@s.whatsapp.net`;
+
     // Envia a mensagem pelo Baileys
-    const sent = await info.sock.sendMessage(phone_number, { text: message_text });
+    const sent = await info.sock.sendMessage(remoteJid, { text: message_text });
     const waMessageId = sent.key.id;
 
     // Registra a mensagem no banco
@@ -34,7 +37,7 @@ async function orchestratorSendMessage(req, res) {
         org_id: channel.org_id,
         channel_id: channel.id,
         wa_message_id: waMessageId,
-        remote_jid: phone_number,
+        remote_jid: remoteJid,
         direction: "OUTBOUND",
         source_system: "MIDDLEWARE",
         content: sent.message,
