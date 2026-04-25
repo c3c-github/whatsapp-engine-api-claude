@@ -24,8 +24,20 @@ async function orchestratorSendMessage(req, res) {
       return res.status(409).json({ error: "Channel socket is not active" });
     }
 
-    // Formata o JID corretamente para o Baileys (exige @s.whatsapp.net ou @lid)
-    const remoteJid = phone_number.includes('@') ? phone_number : `${phone_number}@s.whatsapp.net`;
+    // Formata o JID corretamente
+    // Usuários de Business API/Linked Devices muitas vezes usam @lid em vez de @s.whatsapp.net
+    // Por isso, vamos buscar no banco como chegou a última mensagem dele para responder no mesmo JID.
+    const lastInbound = await prisma.message.findFirst({
+      where: { 
+        remote_jid: { startsWith: phone_number },
+        direction: "INBOUND"
+      },
+      orderBy: { created_at: "desc" }
+    });
+
+    const remoteJid = lastInbound 
+      ? lastInbound.remote_jid 
+      : (phone_number.includes('@') ? phone_number : `${phone_number}@s.whatsapp.net`);
 
     // Envia a mensagem pelo Baileys
     const sent = await info.sock.sendMessage(remoteJid, { text: message_text });
