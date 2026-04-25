@@ -150,6 +150,8 @@ model Message {
   content       Json                // Raw message content
   status        MessageStatus       @default(SENT)
   is_deleted    Boolean             @default(false)
+  published_to_orchestrator Boolean @default(false)
+  orchestrator_error        String?
   created_at    DateTime            @default(now())
 
   organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)

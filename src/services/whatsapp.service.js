@@ -1,6 +1,7 @@
 import prisma from "../lib/prisma.js";
 import { usePostgresAuthState } from "./auth-store.service.js";
 import { createEvent } from "./event-log.service.js";
+import { publishToOrchestrator } from "./orchestrator.service.js";
 import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -120,6 +121,31 @@ async function initSocket(channel) {
           update: { status: "DELIVERED" },
         });
         await createEvent({ org_id: channel.org_id, entity_type: "MESSAGE", entity_id: saved.id, action: "CREATED", payload: { remote_jid: remoteJid, direction, wa_message_id: waMessageId } });
+
+        if (direction === "INBOUND") {
+          try {
+            const phoneNumber = remoteJid.split('@')[0];
+            const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+
+            await publishToOrchestrator({
+              phone_number: phoneNumber,
+              message_text: messageText,
+              message_id: waMessageId
+            });
+
+            await prisma.message.update({
+              where: { id: saved.id },
+              data: { published_to_orchestrator: true }
+            });
+            console.log(`[WhatsApp] Successfully published message ${waMessageId} to Orchestrator.`);
+          } catch (pubErr) {
+            console.error(`[WhatsApp] Orchestrator publish failed for ${waMessageId}:`, pubErr.message);
+            await prisma.message.update({
+              where: { id: saved.id },
+              data: { orchestrator_error: pubErr.message || "Unknown error" }
+            });
+          }
+        }
       } catch (err) {
         console.error("[WhatsApp] Error saving message:", err.message);
       }
