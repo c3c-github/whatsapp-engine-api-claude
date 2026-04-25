@@ -41,10 +41,14 @@ async function processPendingMessages() {
              messageText = msg.content.conversation || msg.content.extendedTextMessage?.text || "";
           }
 
+          const contact = await prisma.contact.findFirst({ where: { phone_number: msg.remote_jid } });
+          const contactName = contact?.name || null;
+
           await publishToOrchestrator({
             phone_number: phoneNumber,
             message_text: messageText,
-            message_id: msg.wa_message_id
+            message_id: msg.wa_message_id,
+            contact_name: contactName
           });
 
           await prisma.message.update({

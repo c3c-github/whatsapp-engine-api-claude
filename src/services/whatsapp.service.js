@@ -161,11 +161,13 @@ async function initSocket(channel) {
 
             const phoneNumber = remoteJid.split('@')[0];
             const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+            const contactName = msg.pushName || null;
 
             await publishToOrchestrator({
               phone_number: phoneNumber,
               message_text: messageText,
-              message_id: waMessageId
+              message_id: waMessageId,
+              contact_name: contactName
             });
 
             await prisma.message.update({
