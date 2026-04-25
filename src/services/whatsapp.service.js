@@ -115,14 +115,30 @@ async function initSocket(channel) {
       const waMessageId = msg.key.id;
       
       try {
+        const messageTimestamp = msg.messageTimestamp; // in seconds
+        const nowInSeconds = Math.floor(Date.now() / 1000);
+        // If message is older than 10 minutes, it's a historical sync from Baileys
+        const isHistoricalSync = (nowInSeconds - messageTimestamp) > 600;
+        const initialOrchestratorStatus = isHistoricalSync ? "PROCESSADO" : "NOVO";
+
         const saved = await prisma.message.upsert({
           where: { channel_id_wa_message_id: { channel_id: channelId, wa_message_id: waMessageId } },
-          create: { org_id: channel.org_id, channel_id: channelId, wa_message_id: waMessageId, remote_jid: remoteJid, direction, source_system: "WHATSAPP_DEVICE", content: msg.message, status: "DELIVERED" },
+          create: { 
+            org_id: channel.org_id, 
+            channel_id: channelId, 
+            wa_message_id: waMessageId, 
+            remote_jid: remoteJid, 
+            direction, 
+            source_system: "WHATSAPP_DEVICE", 
+            content: msg.message, 
+            status: "DELIVERED",
+            orchestrator_status: initialOrchestratorStatus
+          },
           update: { status: "DELIVERED" },
         });
         await createEvent({ org_id: channel.org_id, entity_type: "MESSAGE", entity_id: saved.id, action: "CREATED", payload: { remote_jid: remoteJid, direction, wa_message_id: waMessageId } });
 
-        if (direction === "INBOUND") {
+        if (direction === "INBOUND" && !isHistoricalSync) {
           try {
             const pendingMessages = await prisma.message.count({
               where: {
