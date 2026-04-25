@@ -149,7 +149,7 @@ async function initSocket(channel) {
             await publishToOrchestrator({
               phone_number: phoneNumber,
               message_text: messageText,
-              message_id: waMessageId
+              whatsapp_message_id: waMessageId
             });
 
             await prisma.message.update({

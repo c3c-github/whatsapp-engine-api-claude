@@ -44,7 +44,7 @@ async function processPendingMessages() {
           await publishToOrchestrator({
             phone_number: phoneNumber,
             message_text: messageText,
-            message_id: msg.wa_message_id
+            whatsapp_message_id: msg.wa_message_id
           });
 
           await prisma.message.update({
